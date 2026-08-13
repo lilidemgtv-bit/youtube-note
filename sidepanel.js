@@ -1,7 +1,7 @@
 /**
  * SIDE PANEL LOGIC
  *
- * Handles the UI for YouTube Digest: video detection, transcript analysis,
+ * Handles the UI for YouTube Note: video detection, transcript analysis,
  * rendering results, and export features.
  */
 
@@ -467,7 +467,7 @@ async function checkCurrentTab() {
       if (tabs[0]) tab = tabs[0];
     }
 
-    debugLog("[YouTube Digest Panel] Found tab:", tab?.id, tab?.url);
+    debugLog("[YouTube Note Panel] Found tab:", tab?.id, tab?.url);
 
     if (!tab?.url) {
       showState("welcome");
@@ -488,7 +488,7 @@ async function checkCurrentTab() {
           action: "relayToContent",
           payload: { action: "getVideoInfo" },
         });
-        debugLog("[YouTube Digest Panel] getVideoInfo result:", result);
+        debugLog("[YouTube Note Panel] getVideoInfo result:", result);
         if (result.success && result.response) {
           currentVideoTitle = result.response.title || "";
           currentChannelName = result.response.channelName || "";
@@ -496,7 +496,7 @@ async function checkCurrentTab() {
           currentVideoDuration = result.response.duration || 0;
         }
       } catch (e) {
-        console.error("[YouTube Digest Panel] getVideoInfo error:", e);
+        console.error("[YouTube Note Panel] getVideoInfo error:", e);
         currentVideoTitle = "";
         currentChannelName = "";
         currentVideoDescription = "";
@@ -621,7 +621,7 @@ async function startDigest(videoId, videoUrl) {
   }
 
   showState("loading");
-  updateLoading("Fetching transcript", "");
+  updateLoading("正在获取字幕", "");
 
   const transcriptResult = await chrome.runtime.sendMessage({
     action: "fetchTranscript",
@@ -631,13 +631,13 @@ async function startDigest(videoId, videoUrl) {
   if (!transcriptResult.success) {
     if (transcriptResult.error === "NO_SUPADATA_KEY") {
       showError(
-        "API key missing",
-        "Add your Supadata API key in YouTube Digest Settings.",
+        "缺少 API 密钥",
+        "请在 YouTube Note 设置中添加 Supadata API 密钥。",
       );
       return;
     }
     showError(
-      "No transcript found",
+      "未找到字幕",
       transcriptResult.message || transcriptResult.error,
     );
     return;
@@ -704,7 +704,7 @@ function renderAnalysisResults(analysis) {
     `;
     li.addEventListener("click", () => {
       debugLog(
-        "[YouTube Digest Panel] Chapter clicked:",
+        "[YouTube Note Panel] Chapter clicked:",
         chapter.timestamp,
         chapter.timestampSeconds,
       );
@@ -728,14 +728,14 @@ function renderAnalysisResults(analysis) {
       <div class="quote-meta">
         <span class="quote-timestamp">${escapeHtml(quote.timestamp)}</span>
         <div class="quote-actions">
-          <button class="quote-save-note-btn" title="Save this quote as a note">📝 Note</button>
-          <button class="quote-copy-btn" title="Copy this quote">⧉ Copy</button>
+          <button class="quote-save-note-btn" title="将引言保存为笔记">📝 笔记</button>
+          <button class="quote-copy-btn" title="复制引言">⧉ 复制</button>
         </div>
       </div>
     `;
     div.addEventListener("click", () => {
       debugLog(
-        "[YouTube Digest Panel] Quote clicked:",
+        "[YouTube Note Panel] Quote clicked:",
         quote.timestamp,
         quote.timestampSeconds,
       );
@@ -747,9 +747,9 @@ function renderAnalysisResults(analysis) {
       e.stopPropagation();
       try {
         await navigator.clipboard.writeText(quote.quote);
-        quoteCopyBtn.textContent = "✓ Copied";
+        quoteCopyBtn.textContent = "✓ 已复制";
         setTimeout(() => {
-          quoteCopyBtn.textContent = "⧉ Copy";
+          quoteCopyBtn.textContent = "⧉ 复制";
         }, 1500);
       } catch (err) {
         console.error("Copy failed:", err);
@@ -773,7 +773,7 @@ async function saveQuoteAsNote(quote, btn) {
   if (!currentVideoId) return;
 
   const originalText = btn.textContent;
-  btn.textContent = "Saving...";
+  btn.textContent = "保存中…";
   btn.disabled = true;
 
   try {
@@ -786,7 +786,7 @@ async function saveQuoteAsNote(quote, btn) {
     });
 
     if (result.success) {
-      btn.textContent = "✓ Saved";
+      btn.textContent = "✓ 已保存";
       setTimeout(() => {
         btn.textContent = originalText;
         btn.disabled = false;
@@ -794,16 +794,16 @@ async function saveQuoteAsNote(quote, btn) {
       // Refresh notes list if on Notes tab
       loadNotes(currentVideoId);
     } else {
-      console.error("[YouTube Digest] Save quote as note failed:", result.error);
-      btn.textContent = "Error";
+      console.error("[YouTube Note] Save quote as note failed:", result.error);
+      btn.textContent = "出错了";
       setTimeout(() => {
         btn.textContent = originalText;
         btn.disabled = false;
       }, 1500);
     }
   } catch (error) {
-    console.error("[YouTube Digest] Save quote as note error:", error);
-    btn.textContent = "Error";
+    console.error("[YouTube Note] Save quote as note error:", error);
+    btn.textContent = "出错了";
     setTimeout(() => {
       btn.textContent = originalText;
       btn.disabled = false;
@@ -919,7 +919,7 @@ function exportTranscript() {
 
   exportText += `TRANSCRIPT:\n\n${transcriptContent}\n`;
   exportText += `\n${"—".repeat(60)}\n`;
-  exportText += `Exported by YouTube Digest\n`;
+  exportText += `Exported by YouTube Note\n`;
 
   const filename = `${sanitizeFilename(currentVideoTitle)}-transcript.txt`;
   downloadTextFile(exportText, filename);
@@ -963,19 +963,19 @@ function showError(title, message) {
   showState("error");
   document.getElementById("errorTitle").textContent = title;
   document.getElementById("errorMessage").textContent = message;
-  document.getElementById("errorBtn").textContent = "Try Again";
+  document.getElementById("errorBtn").textContent = "重试";
 }
 
 function showConfigError(configStatus) {
   const missingKeys = [];
   if (!configStatus.hasSupadataKey) missingKeys.push("Supadata");
-  if (!configStatus.hasAiKey) missingKeys.push("AI provider");
+  if (!configStatus.hasAiKey) missingKeys.push("AI 服务商");
 
   showState("error");
-  document.getElementById("errorTitle").textContent = "API Keys Missing";
+  document.getElementById("errorTitle").textContent = "缺少 API 密钥";
   document.getElementById("errorMessage").textContent =
-    `Add your ${missingKeys.join(" and ")} API key${missingKeys.length === 1 ? "" : "s"} in YouTube Digest Settings.`;
-  document.getElementById("errorBtn").textContent = "Open Settings";
+    `请在 YouTube Note 设置中添加 ${missingKeys.join(" 和 ")} 的 API 密钥。`;
+  document.getElementById("errorBtn").textContent = "打开设置";
   errorAction = () => chrome.runtime.sendMessage({ action: "openOptions" });
 }
 
@@ -1025,10 +1025,10 @@ async function triggerAnalysis() {
 
   if (chapterList)
     chapterList.innerHTML =
-      '<li class="chapter-item" style="color: var(--text-muted); border: none;">Loading chapters...</li>';
+      '<li class="chapter-item" style="color: var(--text-muted); border: none;">正在加载章节...</li>';
   if (quotesList)
     quotesList.innerHTML =
-      '<div class="quote-item" style="color: var(--text-muted); border-left-color: var(--border);">Loading quotes...</div>';
+      '<div class="quote-item" style="color: var(--text-muted); border-left-color: var(--border);">正在加载引言...</div>';
 
   try {
     const analysisResult = await chrome.runtime.sendMessage({
@@ -1042,7 +1042,7 @@ async function triggerAnalysis() {
 
     if (!analysisResult.success) {
       if (chapterList)
-        chapterList.innerHTML = `<li class="chapter-item" style="color: var(--accent); border: none;">Analysis failed: ${escapeHtml(analysisResult.error || "Unknown error")}</li>`;
+        chapterList.innerHTML = `<li class="chapter-item" style="color: var(--accent); border: none;">分析失败：${escapeHtml(analysisResult.error || "Unknown error")}</li>`;
       isAnalysisLoading = false;
       return;
     }
@@ -1054,9 +1054,9 @@ async function triggerAnalysis() {
     // Save to cache now that we have analysis
     await saveToCache(currentVideoId);
   } catch (error) {
-    console.error("[YouTube Digest Panel] Analysis error:", error);
+    console.error("[YouTube Note Panel] Analysis error:", error);
     if (chapterList)
-      chapterList.innerHTML = `<li class="chapter-item" style="color: var(--accent); border: none;">Error: ${escapeHtml(error.message)}</li>`;
+      chapterList.innerHTML = `<li class="chapter-item" style="color: var(--accent); border: none;">出错了：${escapeHtml(error.message)}</li>`;
   }
 
   isAnalysisLoading = false;
@@ -1067,9 +1067,9 @@ async function triggerAnalysis() {
 // ============================================================
 
 async function seekTo(seconds) {
-  debugLog("[YouTube Digest Panel] seekTo called with:", seconds);
+  debugLog("[YouTube Note Panel] seekTo called with:", seconds);
   if (seconds === undefined || seconds === null) {
-    debugLog("[YouTube Digest Panel] seekTo aborted - no seconds value");
+    debugLog("[YouTube Note Panel] seekTo aborted - no seconds value");
     return;
   }
 
@@ -1083,11 +1083,11 @@ async function seekTo(seconds) {
     if (youtubeTabId) {
       try {
         await chrome.tabs.sendMessage(youtubeTabId, payload);
-        debugLog("[YouTube Digest Panel] seekTo direct success");
+        debugLog("[YouTube Note Panel] seekTo direct success");
         return;
       } catch (directErr) {
         debugLog(
-          "[YouTube Digest Panel] Direct seekTo failed, falling back to relay:",
+          "[YouTube Note Panel] Direct seekTo failed, falling back to relay:",
           directErr.message,
         );
       }
@@ -1098,9 +1098,9 @@ async function seekTo(seconds) {
       action: "relayToContent",
       payload,
     });
-    debugLog("[YouTube Digest Panel] seekTo relay result:", result);
+    debugLog("[YouTube Note Panel] seekTo relay result:", result);
   } catch (error) {
-    console.error("[YouTube Digest Panel] seekTo error:", error);
+    console.error("[YouTube Note Panel] seekTo error:", error);
   }
 }
 
@@ -1177,7 +1177,7 @@ async function copyToClipboardWithFeedback(text, buttonId) {
 
   const success = await copyToClipboard(text);
   if (success) {
-    btn.textContent = "✓ Copied";
+    btn.textContent = "✓ 已复制";
     setTimeout(() => {
       btn.textContent = original;
     }, 2000);
@@ -1339,7 +1339,7 @@ async function showExplanation(selectedText) {
     }
   } catch (error) {
     const contentDiv = document.getElementById("explanationContent");
-    contentDiv.innerHTML = `<div class="explain-error">Error: ${escapeHtml(error.message)}</div>`;
+    contentDiv.innerHTML = `<div class="explain-error">出错了：${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -1442,7 +1442,7 @@ async function evictOldCacheEntries(maxEntries) {
       .map((e) => e.key);
     if (toRemove.length > 0) {
       await chrome.storage.local.remove(toRemove);
-      debugLog(`[YouTube Digest] Evicted ${toRemove.length} old cache entries`);
+      debugLog(`[YouTube Note] Evicted ${toRemove.length} old cache entries`);
     }
   } catch (error) {
     console.error("Cache eviction error:", error);
@@ -1504,7 +1504,7 @@ async function loadNotes(videoId) {
       renderNotes(result.notes, videoId);
     }
   } catch (error) {
-    console.error("[YouTube Digest Panel] Load notes error:", error);
+    console.error("[YouTube Note Panel] Load notes error:", error);
   }
 }
 
@@ -1623,7 +1623,7 @@ async function deleteNote(noteId) {
       noteId: noteId,
     });
   } catch (error) {
-    console.error("[YouTube Digest Panel] Delete note error:", error);
+    console.error("[YouTube Note Panel] Delete note error:", error);
   }
 }
 
@@ -2069,7 +2069,7 @@ function retryTranslationSegment(index, generation) {
     const translation = row.querySelector(".transcript-translation");
     if (translation) {
       translation.className = "transcript-translation translation-pending";
-      translation.textContent = "Retrying…";
+      translation.textContent = "重试中…";
     }
   }
   activeTranslationQueue.enqueue(index, true);
